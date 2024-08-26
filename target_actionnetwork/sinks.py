@@ -93,6 +93,9 @@ class ContactsSink(ActionNetworkSink):
     def upsert_record(self, record: dict, context: dict):
         state_updates = dict()
         if record:
+            if record.get("error"):
+                raise Exception(record.get("error"))
+
             response = self.request_api(
                 "POST", endpoint=self.endpoint, request_data=record
             )

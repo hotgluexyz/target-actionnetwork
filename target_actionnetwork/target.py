@@ -10,13 +10,15 @@ from target_actionnetwork.sinks import (
     ContactsSink,
 )
 
+SINK_TYPES = [
+    ContactsSink,
+]
 
 class TargetActionNetwork(Target, TargetHotglue):
     """Sample target for ActionNetwork."""
 
     name = "target-actionnetwork"
 
-    SINK_TYPES = []
     MAX_PARALLELISM = 1
 
     def __init__(
@@ -30,7 +32,15 @@ class TargetActionNetwork(Target, TargetHotglue):
         super().__init__(config, parse_env_config, validate_config)
 
     def get_sink_class(self, stream_name: str):
-        return ContactsSink
+        return next(
+            (
+                sink_class
+                for sink_class in SINK_TYPES
+                if sink_class.name.lower() == stream_name.lower()
+            ),
+            None,
+        )
+
 
 
 if __name__ == "__main__":

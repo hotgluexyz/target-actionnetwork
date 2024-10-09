@@ -12,9 +12,12 @@ class TargetActionNetwork(Target, TargetHotglue):
 
     name = "target-actionnetwork"
 
-    SINK_TYPES = []
     MAX_PARALLELISM = 1
 
+    SINK_TYPES = [
+        ContactsSink,
+    ]
+    
     def __init__(
         self,
         config,
@@ -24,10 +27,6 @@ class TargetActionNetwork(Target, TargetHotglue):
     ) -> None:
         self.config_file = config[0]
         super().__init__(config, parse_env_config, validate_config)
-
-    SINK_TYPES = [
-        ContactsSink,
-    ]
 
     def get_sink_class(self, stream_name: str):
         return next(

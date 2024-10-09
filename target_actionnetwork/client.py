@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import backoff
 import requests
-from singer_sdk.exceptions import FatalAPIError, RetriableAPIError
+from singer_sdk.exceptions import RetriableAPIError
 
 from singer_sdk.sinks import RecordSink
 
@@ -43,7 +43,7 @@ class ActionNetworkSink(HotglueSink, RecordSink):
     
     @property
     def base_url(self) -> str:
-        return self.config.get("uri")
+        return "https://actionnetwork.org/api/v2/"
 
     @property
     def authenticator(self):

@@ -1,8 +1,5 @@
 """ActionNetwork target class."""
 
-from __future__ import annotations
-
-from singer_sdk import typing as th
 from singer_sdk.target_base import Target
 from target_hotglue.target import TargetHotglue
 
@@ -14,6 +11,7 @@ SINK_TYPES = [
     ContactsSink,
 ]
 
+
 class TargetActionNetwork(Target, TargetHotglue):
     """Sample target for ActionNetwork."""
 
@@ -21,6 +19,10 @@ class TargetActionNetwork(Target, TargetHotglue):
 
     MAX_PARALLELISM = 1
 
+    SINK_TYPES = [
+        ContactsSink,
+    ]
+    
     def __init__(
         self,
         config,
@@ -40,7 +42,6 @@ class TargetActionNetwork(Target, TargetHotglue):
             ),
             None,
         )
-
 
 
 if __name__ == "__main__":

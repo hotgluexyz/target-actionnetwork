@@ -7,6 +7,11 @@ from target_actionnetwork.sinks import (
     ContactsSink,
 )
 
+SINK_TYPES = [
+    ContactsSink,
+]
+
+
 class TargetActionNetwork(Target, TargetHotglue):
     """Sample target for ActionNetwork."""
 
@@ -32,12 +37,11 @@ class TargetActionNetwork(Target, TargetHotglue):
         return next(
             (
                 sink_class
-                for sink_class in self.SINK_TYPES
+                for sink_class in SINK_TYPES
                 if sink_class.name.lower() == stream_name.lower()
             ),
             None,
         )
-
 
 
 if __name__ == "__main__":

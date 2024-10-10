@@ -26,9 +26,7 @@ class ContactsSink(ActionNetworkSink):
         response = self._request("GET", "advocacy_campaigns")
         res_json = response.json()
         total_pages = res_json.get("total_pages")
-        current_page = 0
-        while current_page < total_pages:
-            current_page += 1
+        for current_page in range(1, total_pages+1):
             response = self._request("GET", "advocacy_campaigns", {"page": current_page})
             res_json = response.json()
             advocacy_campaigns = res_json["_embedded"]["osdi:advocacy_campaigns"]
@@ -159,9 +157,7 @@ class ContactsSink(ActionNetworkSink):
             if record.get("error"):
                 raise Exception(record.get("error"))
 
-            lists = None
-            if "lists" in record:
-                lists = record.pop("lists")
+            lists = record.pop("lists",None)
 
             response = self.request_api(
                 "POST", endpoint=self.endpoint, request_data=record

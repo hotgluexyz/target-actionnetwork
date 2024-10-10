@@ -100,7 +100,7 @@ class ContactsSink(ActionNetworkSink):
         #One of ['subscribed', 'unsubscribed', 'bouncing', 'previou' bounce’, 'spa' complaint’, or 'previou' spam complaint’]
         status = None
         subscribe_status = record.get("subscribe_status")
-        if subscribe_status and subscribe_status in ['subscribed', 'unsubscribed', 'bouncing', 'previou bounce', 'spa complaint', 'previou spam complaint']:
+        if subscribe_status in ['subscribed', 'unsubscribed', 'bouncing', 'previou bounce', 'spa complaint', 'previou spam complaint']:
             status = subscribe_status
         elif record.get("unsubscribed"):
             status = "unsubscribed"

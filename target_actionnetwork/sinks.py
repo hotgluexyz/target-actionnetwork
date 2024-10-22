@@ -188,10 +188,4 @@ class ContactsSink(ActionNetworkSink):
 
         self.logger.info("{} created with id: {}".format(self.name, record_id))
 
-        # Update state with the new record ID or any other relevant information
-        state_updates.update({
-            'processed_id': record_id,
-            'success': True
-        })
-
         return record_id, True, state_updates

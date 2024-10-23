@@ -6,15 +6,12 @@ import backoff
 import requests
 from singer_sdk.exceptions import RetriableAPIError
 
-from singer_sdk.sinks import RecordSink
-
 from target_hotglue.client import HotglueSink
-
 
 from target_actionnetwork.auth import ActionNetworkAuthenticator
 
 
-class ActionNetworkSink(HotglueSink, RecordSink):
+class ActionNetworkSink(HotglueSink):
     """ActionNetwork target sink class."""
 
     @backoff.on_exception(

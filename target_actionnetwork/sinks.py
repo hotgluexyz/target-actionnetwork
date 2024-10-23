@@ -1,5 +1,6 @@
 """ActionNetwork target sink class, which handles writing streams."""
 
+import requests
 from target_actionnetwork.client import ActionNetworkSink
 
 
@@ -18,11 +19,9 @@ class ContactsSink(ActionNetworkSink):
     name = "Contacts"
     advocacy_campaigns = {}
 
-    def __init__(self, target, stream_name, schema, key_properties):
-        super().__init__(target, stream_name, schema, key_properties)
-        self.get_advocacy_campaigns()
-
     def get_advocacy_campaigns(self):
+        if self.advocacy_campaigns:
+            return
         response = self._request("GET", "advocacy_campaigns")
         res_json = response.json()
         total_pages = res_json.get("total_pages")
@@ -100,7 +99,7 @@ class ContactsSink(ActionNetworkSink):
         #One of ['subscribed', 'unsubscribed', 'bouncing', 'previou' bounce’, 'spa' complaint’, or 'previou' spam complaint’]
         status = None
         subscribe_status = record.get("subscribe_status")
-        if subscribe_status in ['subscribed', 'unsubscribed', 'bouncing', 'previou bounce', 'spa complaint', 'previou spam complaint']:
+        if subscribe_status in ['subscribed', 'unsubscribed']:
             status = subscribe_status
         elif record.get("unsubscribed"):
             status = "unsubscribed"
@@ -140,44 +139,53 @@ class ContactsSink(ActionNetworkSink):
                 if field.get("name")
             ]
         
+        payload = {"person": person}
+
         tags = record.get("tags")
         if tags:
-            person["add_tags"] = [
+            tags_list = [
                 tag for tag in tags
             ]
+            payload["add_tags"] = tags_list
 
-        payload = {"person": person}
-        if "lists" in record:
-            payload["lists"] = record["lists"]
+        lists = record.get("lists")
+        if lists:
+            payload["lists"] = lists
         return payload
     
     def upsert_record(self, record: dict, context: dict):
-        state_updates = dict()
-        if record:
-            if record.get("error"):
-                raise Exception(record.get("error"))
-
-            lists = record.pop("lists",None)
-
-            response = self.request_api(
-                "POST", endpoint=self.endpoint, request_data=record
-            )
-            res_json = response.json()
-
-            if lists:
-                email_addresses = record["person"]["email_addresses"]
-                phone_numbers = record["person"]["phone_numbers"]
-                if not email_addresses and not phone_numbers:
-                    raise Exception("Email or Phone Number is required to create outreaches")
-                elif lists:
-                    for l in lists:
-                        if l in self.advocacy_campaigns:
-                            self.create_outreach(self.advocacy_campaigns[l], email_addresses, phone_numbers)
-                        else:
-                            adv_camp_id = self.create_advocacy_campaign(l)
-                            self.create_outreach(adv_camp_id, email_addresses, phone_numbers)
-
-            id = res_json["_links"]["self"]["href"].split("/")[-1]
-            self.logger.info(f"{self.name} created with id: {id}")
-            return id, True, state_updates
+        state_updates = {}
+        if not record:
+            return None, True, state_updates
         
+        error = record.get("error")
+        if error:
+            raise Exception(error)
+
+        lists = record.pop("lists", None)
+
+        response = self.request_api("POST", endpoint=self.endpoint, request_data=record)
+        
+        if not response.ok:
+            raise Exception(response.text)
+
+        res_json = response.json()
+        record_id = res_json["_links"]["self"]["href"].split("/")[-1]
+
+        if lists:
+            self.get_advocacy_campaigns()
+            email_addresses = record["person"].get("email_addresses", [])
+            phone_numbers = record["person"].get("phone_numbers", [])
+            if not email_addresses and not phone_numbers:
+                raise Exception("Email or Phone Number is required to create outreaches. "
+                                "Error during creation of {} record with id: {}".format(self.name, record_id))
+            for list_name in lists:
+                if list_name in self.advocacy_campaigns:
+                    self.create_outreach(self.advocacy_campaigns[list_name], email_addresses, phone_numbers)
+                else:
+                    adv_camp_id = self.create_advocacy_campaign(list_name)
+                    self.create_outreach(adv_camp_id, email_addresses, phone_numbers)
+
+        self.logger.info("{} created with id: {}".format(self.name, record_id))
+
+        return record_id, True, state_updates

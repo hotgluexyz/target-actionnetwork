@@ -154,9 +154,6 @@ class ContactsSink(ActionNetworkSink):
 
         payload = {"person": person}
 
-
-
-
         tags = record.get("tags")
         if tags:
             tags_list = [

@@ -144,11 +144,13 @@ class ContactsSink(ActionNetworkSink):
         if only_upsert_empty_fields:
             matching_person = self.find_matching_object("email_address", record.get("email"))
             if matching_person:
-                person["identifiers"] = matching_person.pop("identifiers") or []
 
-                for key, value in matching_person.items():
-                    if value:
-                        person[key] = value
+                for key, value in person.items():
+                    existing_value = matching_person.get(key)
+                    if existing_value is None:
+                        matching_person[key] = value
+
+                person = matching_person
 
         payload = {"person": person}
 

@@ -38,7 +38,7 @@ class ContactsSink(ActionNetworkSink):
         try:
             data = {
                 "title": name,
-                "origin_system": "hotglue",
+                "origin_system": self.config.get("campaign_origin_system", "Hotglue"),
                 "type": "email"
             }
             response = self._request("POST", "advocacy_campaigns", request_data=data)

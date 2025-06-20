@@ -91,3 +91,4 @@ class ActionNetworkSink(HotglueSink):
             return None
         except Exception:
             return None
+

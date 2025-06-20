@@ -180,7 +180,11 @@ class ContactsSink(ActionNetworkSink):
         response = self.request_api("POST", endpoint=self.endpoint, request_data=record)
         
         if not response.ok:
-            raise Exception(response.text)
+            state_updates["error"] = response.text
+            return None, False, state_updates
+        
+        if record.get('person', {}).get('created_date'):
+            state_updates["is_updated"] = True
 
         res_json = response.json()
         record_id = res_json["_links"]["self"]["href"].split("/")[-1]

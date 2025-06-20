@@ -51,6 +51,12 @@ This Singer target will automatically import any environment variables within th
 `.env` if the `--config=ENV` is provided, such that config values will be considered if a matching
 environment variable is set either in the terminal context or in the `.env` file.
 
+Optional config flags include:
+
+| name | default | description |
+| -----| ------- | ----------- |
+| `only_upsert_empty_fields` | `false` | If true, will not overwrite existing Contact fields in NationBuilder |
+
 ### Source Authentication and Authorization
 
 <!--
@@ -80,53 +86,3 @@ Follow these instructions to contribute to this project.
 pipx install poetry
 poetry install
 ```
-
-### Create and Run Tests
-
-Create tests within the `tests` subfolder and
-  then run:
-
-```bash
-poetry run pytest
-```
-
-You can also test the `target-actionnetwork` CLI interface directly using `poetry run`:
-
-```bash
-poetry run target-actionnetwork --help
-```
-
-### Testing with [Meltano](https://meltano.com/)
-
-_**Note:** This target will work in any Singer environment and does not require Meltano.
-Examples here are for convenience and to streamline end-to-end orchestration scenarios._
-
-<!--
-Developer TODO:
-Your project comes with a custom `meltano.yml` project file already created. Open the `meltano.yml` and follow any "TODO" items listed in
-the file.
--->
-
-Next, install Meltano (if you haven't already) and any needed plugins:
-
-```bash
-# Install meltano
-pipx install meltano
-# Initialize meltano within this directory
-cd target-actionnetwork
-meltano install
-```
-
-Now you can test and orchestrate using Meltano:
-
-```bash
-# Test invocation:
-meltano invoke target-actionnetwork --version
-# OR run a test `elt` pipeline with the Carbon Intensity sample tap:
-meltano run tap-carbon-intensity target-actionnetwork
-```
-
-### SDK Dev Guide
-
-See the [dev guide](https://sdk.meltano.com/en/latest/dev_guide.html) for more instructions on how to use the Meltano Singer SDK to
-develop your own Singer taps and targets.

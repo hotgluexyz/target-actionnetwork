@@ -28,9 +28,10 @@ pipx install git+https://github.com/ORG_NAME/target-actionnetwork.git@main
 
 ### Accepted Config Options
 
-| name | default | description
-------------------------------
-| campaign_origin_system | `Hotglue` | The origin system to specified for advocacy campaigns created by the connector
+
+| name | default | description| 
+|--------|--------|------------|
+| campaign_origin_system | `Hotglue` | The origin system to specified for advocacy campaigns created by the connector |
 
 ### Configure using environment variables
 

@@ -28,22 +28,9 @@ pipx install git+https://github.com/ORG_NAME/target-actionnetwork.git@main
 
 ### Accepted Config Options
 
-<!--
-Developer TODO: Provide a list of config options accepted by the target.
-
-This section can be created by copy-pasting the CLI output from:
-
-```
-target-actionnetwork --about --format=markdown
-```
--->
-
-A full list of supported settings and capabilities for this
-target is available by running:
-
-```bash
-target-actionnetwork --about
-```
+| name | default | description
+------------------------------
+| campaign_origin_system | `Hotglue` | The origin system to specified for advocacy campaigns created by the connector
 
 ### Configure using environment variables
 
@@ -53,13 +40,7 @@ environment variable is set either in the terminal context or in the `.env` file
 
 ### Source Authentication and Authorization
 
-<!--
-Developer TODO: If your target requires special access on the destination system, or any special authentication requirements, provide those here.
--->
 
-## Usage
-
-You can easily run `target-actionnetwork` by itself or in a pipeline using [Meltano](https://meltano.com/).
 
 ### Executing the Target Directly
 
@@ -70,63 +51,10 @@ target-actionnetwork --help
 tap-carbon-intensity | target-actionnetwork --config /path/to/target-actionnetwork-config.json
 ```
 
-## Developer Resources
 
-Follow these instructions to contribute to this project.
-
-### Initialize your Development Environment
+## Initialize your Development Environment
 
 ```bash
-pipx install poetry
-poetry install
+pip install -e .
 ```
 
-### Create and Run Tests
-
-Create tests within the `tests` subfolder and
-  then run:
-
-```bash
-poetry run pytest
-```
-
-You can also test the `target-actionnetwork` CLI interface directly using `poetry run`:
-
-```bash
-poetry run target-actionnetwork --help
-```
-
-### Testing with [Meltano](https://meltano.com/)
-
-_**Note:** This target will work in any Singer environment and does not require Meltano.
-Examples here are for convenience and to streamline end-to-end orchestration scenarios._
-
-<!--
-Developer TODO:
-Your project comes with a custom `meltano.yml` project file already created. Open the `meltano.yml` and follow any "TODO" items listed in
-the file.
--->
-
-Next, install Meltano (if you haven't already) and any needed plugins:
-
-```bash
-# Install meltano
-pipx install meltano
-# Initialize meltano within this directory
-cd target-actionnetwork
-meltano install
-```
-
-Now you can test and orchestrate using Meltano:
-
-```bash
-# Test invocation:
-meltano invoke target-actionnetwork --version
-# OR run a test `elt` pipeline with the Carbon Intensity sample tap:
-meltano run tap-carbon-intensity target-actionnetwork
-```
-
-### SDK Dev Guide
-
-See the [dev guide](https://sdk.meltano.com/en/latest/dev_guide.html) for more instructions on how to use the Meltano Singer SDK to
-develop your own Singer taps and targets.

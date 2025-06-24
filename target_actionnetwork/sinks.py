@@ -66,6 +66,78 @@ class ContactsSink(ActionNetworkSink):
         self.logger.info(f"Outreach created with id: {id}. advocacy_campaign_id={advocacy_campaign_id} and person={data['person']}")
         return id
     
+    def _merge_missing_simple_fields(self, target_person: dict, source_person: dict, field_names: list[str]) -> dict:
+        """Merge simple field values from source to target, only if target field is empty."""
+        for field_name in field_names:
+            if not target_person.get(field_name) and source_person.get(field_name):
+                target_person[field_name] = source_person[field_name]
+        return target_person
+    
+    def _merge_missing_string_lists(self, target_person: dict, source_person: dict, list_field_names: list[str]) -> dict:
+        """Merge string list fields from source to target, adding unique items only."""
+        for field_name in list_field_names:
+            if source_person.get(field_name):
+                if not target_person.get(field_name):
+                    target_person[field_name] = []
+                for item in source_person[field_name]:
+                    if item not in target_person[field_name]:
+                        target_person[field_name].append(item)
+        return target_person
+
+    def _merge_person_data(self, existing_person: dict, new_person: dict) -> dict:
+        """
+        Merge nested person data from Action Network API.
+        Only updates fields that are empty/missing in the existing person.
+        """
+        merged = existing_person.copy()
+        
+        merged = self._merge_missing_simple_fields(merged, new_person, ['given_name', 'family_name'])
+        merged = self._merge_missing_string_lists(merged, new_person, ['languages_spoken'])
+
+        if new_person.get('email_addresses'):
+            existing_emails = {email.get('address'): email for email in merged.get('email_addresses', [])}
+            for new_email in new_person['email_addresses']:
+                email_addr = new_email.get('address')
+                if email_addr and email_addr not in existing_emails:
+                    existing_emails[email_addr] = new_email
+                elif email_addr in existing_emails:
+                    existing_email = existing_emails[email_addr]
+                    existing_emails[email_addr] = self._merge_missing_simple_fields(existing_email, new_email, ['status', 'primary'])
+            merged['email_addresses'] = list(existing_emails.values())
+        
+        if new_person.get('phone_numbers'):
+            existing_phones = {phone.get('number'): phone for phone in merged.get('phone_numbers', [])}
+            for new_phone in new_person['phone_numbers']:
+                phone_number = new_phone.get('number')
+                if phone_number and phone_number not in existing_phones:
+                    if 'phone_numbers' not in merged:
+                        merged['phone_numbers'] = []
+                    merged['phone_numbers'].append(new_phone)
+                elif phone_number in existing_phones:
+                    existing_phone = existing_phones[phone_number]
+                    existing_phones[phone_number] = self._merge_missing_simple_fields(existing_phone, new_phone, ['status', 'primary', 'number_type'])
+            merged['phone_numbers'] = list(existing_phones.values())
+            
+        if new_person.get('postal_addresses'):
+            if not merged.get('postal_addresses'):
+                merged['postal_addresses'] = new_person['postal_addresses']
+
+        if new_person.get('custom_fields'):
+            if not merged.get('custom_fields'):
+                merged['custom_fields'] = {}
+            # Handle both dict format (from ActionNetwork API) and list format (from preprocess_record)
+            if isinstance(new_person['custom_fields'], dict):
+                for field_key, field_value in new_person['custom_fields'].items():
+                    if field_key not in merged['custom_fields']:
+                        merged['custom_fields'][field_key] = field_value
+            elif isinstance(new_person['custom_fields'], list):
+                for field_dict in new_person['custom_fields']:
+                    for field_key, field_value in field_dict.items():
+                        if field_key not in merged['custom_fields']:
+                            merged['custom_fields'][field_key] = field_value
+                    
+        return merged
+    
     def preprocess_record(self, record: dict, context: dict) -> dict:
         person = {
             "family_name" : record.get("last_name"),
@@ -144,13 +216,7 @@ class ContactsSink(ActionNetworkSink):
         if only_upsert_empty_fields:
             matching_person = self.find_matching_object("email_address", record.get("email"))
             if matching_person:
-
-                for key, value in person.items():
-                    existing_value = matching_person.get(key)
-                    if existing_value is None:
-                        matching_person[key] = value
-
-                person = matching_person
+                person = self._merge_person_data(matching_person, person)
 
         payload = {"person": person}
 

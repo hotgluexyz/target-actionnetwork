@@ -28,22 +28,10 @@ pipx install git+https://github.com/ORG_NAME/target-actionnetwork.git@main
 
 ### Accepted Config Options
 
-<!--
-Developer TODO: Provide a list of config options accepted by the target.
 
-This section can be created by copy-pasting the CLI output from:
-
-```
-target-actionnetwork --about --format=markdown
-```
--->
-
-A full list of supported settings and capabilities for this
-target is available by running:
-
-```bash
-target-actionnetwork --about
-```
+| name | default | description| 
+|--------|--------|------------|
+| campaign_origin_system | `Hotglue` | The origin system to specified for advocacy campaigns created by the connector |
 
 ### Configure using environment variables
 
@@ -59,13 +47,7 @@ Optional config flags include:
 
 ### Source Authentication and Authorization
 
-<!--
-Developer TODO: If your target requires special access on the destination system, or any special authentication requirements, provide those here.
--->
 
-## Usage
-
-You can easily run `target-actionnetwork` by itself or in a pipeline using [Meltano](https://meltano.com/).
 
 ### Executing the Target Directly
 
@@ -76,13 +58,10 @@ target-actionnetwork --help
 tap-carbon-intensity | target-actionnetwork --config /path/to/target-actionnetwork-config.json
 ```
 
-## Developer Resources
 
-Follow these instructions to contribute to this project.
-
-### Initialize your Development Environment
+## Initialize your Development Environment
 
 ```bash
-pipx install poetry
-poetry install
+pip install -e .
 ```
+

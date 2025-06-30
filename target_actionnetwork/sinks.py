@@ -32,7 +32,7 @@ class ContactsSink(ActionNetworkSink):
             for adv_camp in advocacy_campaigns:
                 if adv_camp["title"] in self.advocacy_campaigns:
                     self.logger.warning(f"The campaign (title={adv_camp['title']}, id={adv_camp['identifiers']}) already exists, and it is mapped to id={self.advocacy_campaigns[adv_camp['title']]}")
-                self.advocacy_campaigns[adv_camp["title"]] = adv_camp["identifiers"][0].split(':')[1]
+                self.advocacy_campaigns[adv_camp["title"]] = {"id": adv_camp["identifiers"][0].split(':')[1], "origin_system": adv_camp.get("origin_system")}
 
     def create_advocacy_campaign(self, name):
         try:
@@ -49,6 +49,15 @@ class ContactsSink(ActionNetworkSink):
         self.advocacy_campaigns[name] = id
         self.logger.info(f"advocacy_campaign_id created with id: {id}.")
         return id
+
+    def update_advocacy_campaign(self, campaign_id, origin_system):
+        data = {
+            "origin_system": origin_system
+        }
+        response = self._request("PUT", f"advocacy_campaigns/{campaign_id}", request_data=data)
+        res_json = response.json()
+        self.logger.info(f"advocacy_campaign_id {campaign_id} updated with origin_system: {origin_system}")
+        return res_json
 
     def create_outreach(self, advocacy_campaign_id, email_addresses, phone_numbers):
         try:
@@ -114,16 +123,10 @@ class ContactsSink(ActionNetworkSink):
         if new_person.get('custom_fields'):
             if not merged.get('custom_fields'):
                 merged['custom_fields'] = {}
-            # Handle both dict format (from ActionNetwork API) and list format (from preprocess_record)
             if isinstance(new_person['custom_fields'], dict):
                 for field_key, field_value in new_person['custom_fields'].items():
                     if field_key not in merged['custom_fields']:
                         merged['custom_fields'][field_key] = field_value
-            elif isinstance(new_person['custom_fields'], list):
-                for field_dict in new_person['custom_fields']:
-                    for field_key, field_value in field_dict.items():
-                        if field_key not in merged['custom_fields']:
-                            merged['custom_fields'][field_key] = field_value
                     
         return merged
     
@@ -194,11 +197,11 @@ class ContactsSink(ActionNetworkSink):
 
         custom_fields = record.get("custom_fields")
         if custom_fields:
-            person["custom_fields"] = [
-                {field.get("name"): field.get("value")}
+            person["custom_fields"] = {
+                field.get("name"): field.get("value")
                 for field in custom_fields
                 if field.get("name")
-            ]
+            }
 
         only_upsert_empty_fields = self.config.get("only_upsert_empty_fields", False)
         
@@ -253,7 +256,11 @@ class ContactsSink(ActionNetworkSink):
                                 "Error during creation of {} record with id: {}".format(self.name, record_id))
             for list_name in lists:
                 if list_name in self.advocacy_campaigns:
-                    self.create_outreach(self.advocacy_campaigns[list_name], email_addresses, phone_numbers)
+                    # Backfill origin system if set
+                    if self.config.get("campaign_origin_system") and self.advocacy_campaigns[list_name].get("origin_system") == "hotglue":
+                        self.update_advocacy_campaign(self.advocacy_campaigns[list_name]["id"], self.config.get("campaign_origin_system"))
+
+                    self.create_outreach(self.advocacy_campaigns[list_name]["id"], email_addresses, phone_numbers)
                 else:
                     adv_camp_id = self.create_advocacy_campaign(list_name)
                     self.create_outreach(adv_camp_id, email_addresses, phone_numbers)

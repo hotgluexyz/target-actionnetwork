@@ -142,11 +142,11 @@ class ContactsSink(ActionNetworkSink):
 
         custom_fields = record.get("custom_fields")
         if custom_fields:
-            person["custom_fields"] = [
-                {field.get("name"): field.get("value")}
+            person["custom_fields"] = {
+                field.get("name"): field.get("value")
                 for field in custom_fields
                 if field.get("name")
-            ]
+            }
         
         payload = {"person": person}
 

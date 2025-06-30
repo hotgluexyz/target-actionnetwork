@@ -73,16 +73,6 @@ class ContactsSink(ActionNetworkSink):
                 target_person[field_name] = source_person[field_name]
         return target_person
     
-    def _merge_missing_string_lists(self, target_person: dict, source_person: dict, list_field_names: list[str]) -> dict:
-        """Merge string list fields from source to target, adding unique items only."""
-        for field_name in list_field_names:
-            if source_person.get(field_name):
-                if not target_person.get(field_name):
-                    target_person[field_name] = []
-                for item in source_person[field_name]:
-                    if item not in target_person[field_name]:
-                        target_person[field_name].append(item)
-        return target_person
 
     def _merge_person_data(self, existing_person: dict, new_person: dict) -> dict:
         """
@@ -92,7 +82,6 @@ class ContactsSink(ActionNetworkSink):
         merged = existing_person.copy()
         
         merged = self._merge_missing_simple_fields(merged, new_person, ['given_name', 'family_name'])
-        merged = self._merge_missing_string_lists(merged, new_person, ['languages_spoken'])
 
         if new_person.get('email_addresses'):
             existing_emails = {email.get('address'): email for email in merged.get('email_addresses', [])}

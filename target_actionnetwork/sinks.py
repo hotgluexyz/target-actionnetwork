@@ -94,7 +94,7 @@ class ContactsSink(ActionNetworkSink):
     
     def _merge_postal_address(self, existing_addr: dict, new_addr: dict) -> dict:
         """Merge postal address data from source to target, only if target field is empty."""
-        merged =  self._merge_missing_simple_fields(existing_addr, new_addr, ['primary', 'locality', 'region', 'postal_code', 'country', 'language'])
+        merged =  self._merge_missing_simple_fields(existing_addr, new_addr, [ 'locality', 'region', 'postal_code', 'country', 'language'])
         
         # Initialize address_lines if it doesn't exist
         if 'address_lines' not in merged:
@@ -136,7 +136,7 @@ class ContactsSink(ActionNetworkSink):
                     existing_emails[email_addr] = new_email
                 elif email_addr in existing_emails:
                     existing_email = existing_emails[email_addr]
-                    existing_emails[email_addr] = self._merge_missing_simple_fields(existing_email, new_email, ['status', 'primary'])
+                    existing_emails[email_addr] = self._merge_missing_simple_fields(existing_email, new_email, ['status'])
             merged['email_addresses'] = list(existing_emails.values())
         
         if new_person.get('phone_numbers'):
@@ -147,19 +147,15 @@ class ContactsSink(ActionNetworkSink):
                     existing_phones[phone_number] = new_phone
                 elif phone_number in existing_phones:
                     existing_phone = existing_phones[phone_number]
-                    existing_phones[phone_number] = self._merge_missing_simple_fields(existing_phone, new_phone, ['status', 'primary', 'number_type'])
+                    existing_phones[phone_number] = self._merge_missing_simple_fields(existing_phone, new_phone, ['status', 'number_type'])
             merged['phone_numbers'] = list(existing_phones.values())
             
         if new_person.get('postal_addresses'):
-            existing_addresses = {self._normalize_address(addr): addr for addr in merged.get('postal_addresses', [])}
-            for new_addr in new_person['postal_addresses']:
-                addr_tuple = self._normalize_address(new_addr)
-                if addr_tuple not in existing_addresses:
-                    existing_addresses[addr_tuple] = new_addr
-                else:
-                    existing_addr = existing_addresses[addr_tuple]
-                    existing_addresses[addr_tuple] = self._merge_postal_address(existing_addr, new_addr)
-            merged['postal_addresses'] = list(existing_addresses.values())
+            if not merged.get('postal_addresses'):
+                merged['postal_addresses'] = [new_person['postal_addresses'][0]]
+            else:
+                merged_postal_address = self._merge_postal_address(merged['postal_addresses'][0], new_person['postal_addresses'][0])
+                merged['postal_addresses'] = [merged_postal_address]
 
         if new_person.get('custom_fields'):
             if not merged.get('custom_fields'):

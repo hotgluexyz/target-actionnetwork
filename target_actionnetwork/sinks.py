@@ -82,6 +82,42 @@ class ContactsSink(ActionNetworkSink):
                 target_person[field_name] = source_person[field_name]
         return target_person
     
+    def _normalize_address(self, addr: dict) -> tuple:
+        """Return a tuple of canonical fields for comparison."""
+        country = addr.get("country")
+        return (
+            addr.get("locality"),
+            addr.get("region"),
+            addr.get("postal_code"),
+            country.upper() if country else None
+        )
+    
+    def _merge_postal_address(self, existing_addr: dict, new_addr: dict) -> dict:
+        """Merge postal address data from source to target, only if target field is empty."""
+        merged =  self._merge_missing_simple_fields(existing_addr, new_addr, ['primary', 'locality', 'region', 'postal_code', 'country', 'language'])
+        
+        # Initialize address_lines if it doesn't exist
+        if 'address_lines' not in merged:
+            merged['address_lines'] = []      
+        for address_line in new_addr.get('address_lines', []):
+            if address_line not in merged['address_lines']:
+                merged['address_lines'].append(address_line)
+        
+        # Add support for location object
+        if new_addr.get('location'):
+            if not merged.get('location'):
+                merged['location'] = new_addr['location']
+            else:
+                # Merge location fields only if they're missing in existing location
+                existing_location = merged['location']
+                new_location = new_addr['location']
+                merged['location'] = self._merge_missing_simple_fields(
+                    existing_location, 
+                    new_location, 
+                    ['latitude', 'longitude', 'accuracy']
+                )
+        
+        return merged
 
     def _merge_person_data(self, existing_person: dict, new_person: dict) -> dict:
         """
@@ -108,17 +144,22 @@ class ContactsSink(ActionNetworkSink):
             for new_phone in new_person['phone_numbers']:
                 phone_number = new_phone.get('number')
                 if phone_number and phone_number not in existing_phones:
-                    if 'phone_numbers' not in merged:
-                        merged['phone_numbers'] = []
-                    merged['phone_numbers'].append(new_phone)
+                    existing_phones[phone_number] = new_phone
                 elif phone_number in existing_phones:
                     existing_phone = existing_phones[phone_number]
                     existing_phones[phone_number] = self._merge_missing_simple_fields(existing_phone, new_phone, ['status', 'primary', 'number_type'])
             merged['phone_numbers'] = list(existing_phones.values())
             
         if new_person.get('postal_addresses'):
-            if not merged.get('postal_addresses'):
-                merged['postal_addresses'] = new_person['postal_addresses']
+            existing_addresses = {self._normalize_address(addr): addr for addr in merged.get('postal_addresses', [])}
+            for new_addr in new_person['postal_addresses']:
+                addr_tuple = self._normalize_address(new_addr)
+                if addr_tuple not in existing_addresses:
+                    existing_addresses[addr_tuple] = new_addr
+                else:
+                    existing_addr = existing_addresses[addr_tuple]
+                    existing_addresses[addr_tuple] = self._merge_postal_address(existing_addr, new_addr)
+            merged['postal_addresses'] = list(existing_addresses.values())
 
         if new_person.get('custom_fields'):
             if not merged.get('custom_fields'):

@@ -159,12 +159,11 @@ class ContactsSink(ActionNetworkSink):
 
         if new_person.get('custom_fields'):
             if not merged.get('custom_fields'):
-                merged['custom_fields'] = {}
-            if isinstance(new_person['custom_fields'], dict):
-                for field_key, field_value in new_person['custom_fields'].items():
-                    if field_key not in merged['custom_fields']:
-                        merged['custom_fields'][field_key] = field_value
-                    
+                merged['custom_fields'] = new_person['custom_fields'].copy()
+            else:
+                new_person["custom_fields"].update(merged["custom_fields"])
+                merged["custom_fields"] = new_person["custom_fields"]
+                
         return merged
     
     def preprocess_record(self, record: dict, context: dict) -> dict:

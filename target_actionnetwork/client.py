@@ -21,7 +21,7 @@ class ActionNetworkSink(HotglueSink):
         factor=2,
     )
     def _request(
-        self, http_method: str, endpoint: str, params: dict=None, request_data: dict = None, headers: dict = None
+        self, http_method: str, endpoint: str, params: dict=None, request_data: dict = None, headers: dict = None, verify: bool = True
     ) -> requests.PreparedRequest:
         """Prepare a request object."""
         url = self.url(endpoint)
@@ -34,6 +34,7 @@ class ActionNetworkSink(HotglueSink):
             params=params,
             headers=headers,
             json=request_data,
+            verify=verify,
         )
         self.validate_response(response)
         return response

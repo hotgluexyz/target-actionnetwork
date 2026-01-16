@@ -20,9 +20,9 @@ class ActionNetworkSink(HotglueSink):
     """ActionNetwork target sink class."""
 
     @backoff.on_exception(
-        backoff.expo,   
+        backoff.expo,
         (RetriableAPIError, requests.exceptions.ReadTimeout),
-        max_tries=7,
+        max_tries=8,
         factor=2,
     )
     def _request(

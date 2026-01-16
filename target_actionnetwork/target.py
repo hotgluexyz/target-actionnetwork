@@ -34,7 +34,6 @@ class TargetActionNetwork(TargetHotglue):
             ),
             None,
         )
-    
 
 if __name__ == "__main__":
     TargetActionNetwork.cli()

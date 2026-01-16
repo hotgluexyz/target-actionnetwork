@@ -75,6 +75,97 @@ class ContactsSink(ActionNetworkSink):
         self.logger.info(f"Outreach created with id: {id}. advocacy_campaign_id={advocacy_campaign_id} and person={data['person']}")
         return id
     
+    def _merge_missing_simple_fields(self, target_person: dict, source_person: dict, field_names: list[str]) -> dict:
+        """Merge simple field values from source to target, only if target field is empty."""
+        for field_name in field_names:
+            if not target_person.get(field_name) and source_person.get(field_name):
+                target_person[field_name] = source_person[field_name]
+        return target_person
+    
+    def _normalize_address(self, addr: dict) -> tuple:
+        """Return a tuple of canonical fields for comparison."""
+        country = addr.get("country")
+        return (
+            addr.get("locality"),
+            addr.get("region"),
+            addr.get("postal_code"),
+            country.upper() if country else None
+        )
+    
+    def _merge_postal_address(self, existing_addr: dict, new_addr: dict) -> dict:
+        """Merge postal address data from source to target, only if target field is empty."""
+        merged =  self._merge_missing_simple_fields(existing_addr, new_addr, [ 'locality', 'region', 'postal_code', 'country', 'language'])
+        
+        # Initialize address_lines if it doesn't exist
+        if 'address_lines' not in merged:
+            merged['address_lines'] = []      
+        for address_line in new_addr.get('address_lines', []):
+            if address_line not in merged['address_lines']:
+                merged['address_lines'].append(address_line)
+        
+        # Add support for location object
+        if new_addr.get('location'):
+            if not merged.get('location'):
+                merged['location'] = new_addr['location']
+            else:
+                # Merge location fields only if they're missing in existing location
+                existing_location = merged['location']
+                new_location = new_addr['location']
+                merged['location'] = self._merge_missing_simple_fields(
+                    existing_location, 
+                    new_location, 
+                    ['latitude', 'longitude', 'accuracy']
+                )
+        
+        return merged
+
+    def _merge_person_data(self, existing_person: dict, new_person: dict) -> dict:
+        """
+        Merge nested person data from Action Network API.
+        Only updates fields that are empty/missing in the existing person.
+        """
+        merged = existing_person.copy()
+        
+        merged = self._merge_missing_simple_fields(merged, new_person, ['given_name', 'family_name'])
+
+        if new_person.get('email_addresses'):
+            existing_emails = {email.get('address'): email for email in merged.get('email_addresses', [])}
+            for new_email in new_person['email_addresses']:
+                email_addr = new_email.get('address')
+                if email_addr and email_addr not in existing_emails:
+                    existing_emails[email_addr] = new_email
+                elif email_addr in existing_emails:
+                    existing_email = existing_emails[email_addr]
+                    existing_emails[email_addr] = self._merge_missing_simple_fields(existing_email, new_email, ['status'])
+            merged['email_addresses'] = list(existing_emails.values())
+        
+        if new_person.get('phone_numbers'):
+            existing_phones = {phone.get('number'): phone for phone in merged.get('phone_numbers', [])}
+            for new_phone in new_person['phone_numbers']:
+                phone_number = new_phone.get('number')
+                if phone_number and phone_number not in existing_phones:
+                    existing_phones[phone_number] = new_phone
+                elif phone_number in existing_phones:
+                    existing_phone = existing_phones[phone_number]
+                    existing_phones[phone_number] = self._merge_missing_simple_fields(existing_phone, new_phone, ['status', 'number_type'])
+            merged['phone_numbers'] = list(existing_phones.values())
+            
+        if new_person.get('postal_addresses'):
+            if not merged.get('postal_addresses'):
+                merged['postal_addresses'] = [new_person['postal_addresses'][0]]
+            else:
+                merged_postal_address = self._merge_postal_address(merged['postal_addresses'][0], new_person['postal_addresses'][0])
+                merged['postal_addresses'] = [merged_postal_address]
+
+        if new_person.get('custom_fields'):
+            if not merged.get('custom_fields'):
+                merged['custom_fields'] = new_person['custom_fields'].copy()
+            else:
+                new_person["custom_fields"].update(merged["custom_fields"])
+                merged["custom_fields"] = new_person["custom_fields"]
+                
+        return merged
+    
     def preprocess_record(self, record: dict, context: dict) -> dict:
         person = {
             "family_name" : record.get("last_name"),
@@ -147,7 +238,14 @@ class ContactsSink(ActionNetworkSink):
                 for field in custom_fields
                 if field.get("name")
             }
+
+        only_upsert_empty_fields = self.config.get("only_upsert_empty_fields", False)
         
+        if only_upsert_empty_fields:
+            matching_person = self.find_matching_object("email_address", record.get("email"))
+            if matching_person:
+                person = self._merge_person_data(matching_person, person)
+
         payload = {"person": person}
 
         tags = record.get("tags")
@@ -176,7 +274,11 @@ class ContactsSink(ActionNetworkSink):
         response = self.request_api("POST", endpoint=self.endpoint, request_data=record)
         
         if not response.ok:
-            raise Exception(response.text)
+            state_updates["error"] = response.text
+            return None, False, state_updates
+        
+        if record.get('person', {}).get('created_date'):
+            state_updates["is_updated"] = True
 
         res_json = response.json()
         record_id = res_json["_links"]["self"]["href"].split("/")[-1]

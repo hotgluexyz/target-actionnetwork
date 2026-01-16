@@ -39,6 +39,12 @@ This Singer target will automatically import any environment variables within th
 `.env` if the `--config=ENV` is provided, such that config values will be considered if a matching
 environment variable is set either in the terminal context or in the `.env` file.
 
+Optional config flags include:
+
+| name | default | description |
+| -----| ------- | ----------- |
+| `only_upsert_empty_fields` | `false` | If true, will not overwrite existing Contact fields in NationBuilder |
+
 ### Source Authentication and Authorization
 
 

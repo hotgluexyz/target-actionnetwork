@@ -65,7 +65,7 @@ class ContactsSink(ActionNetworkSink):
             if email_addresses:
                 data["person"]["email_addresses"] = [{"address": addr["address"]}for addr in email_addresses]
             if phone_numbers:
-                data["person"]["phone_numbers"] = [{"number": addr["number"]}for addr in phone_numbers]
+                data["person"]["phone_numbers"] = [{"number": addr["phone_number"]}for addr in phone_numbers]
             url = f"advocacy_campaigns/{advocacy_campaign_id}/outreaches/"
             response = self._request("POST", url, request_data=data)
             res_json = response.json()
@@ -134,7 +134,7 @@ class ContactsSink(ActionNetworkSink):
         if phone_numbers:
             person["phone_numbers"] = [
                 {
-                    "number": phone_number.get("number"),
+                    "phone_number": phone_number.get("number"),
                     "type": phone_number.get("type")
                 }
                 for phone_number in phone_numbers

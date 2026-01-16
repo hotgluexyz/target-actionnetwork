@@ -1,8 +1,6 @@
 """ActionNetwork target class."""
 
-from hotglue_singer_sdk import typing as th
-from hotglue_singer_sdk.target_sdk.target import TargetHotglue
-from hotglue_singer_sdk.helpers.capabilities import AlertingLevel
+from target_hotglue.target import TargetHotglue
 
 from target_actionnetwork.sinks import (
     ContactsSink,
@@ -10,12 +8,6 @@ from target_actionnetwork.sinks import (
 
 class TargetActionNetwork(TargetHotglue):
     """Sample target for ActionNetwork."""
-
-    config_jsonschema = th.PropertiesList(
-        th.Property("token", th.StringType, required=True),
-    ).to_dict()
-
-    alerting_level = AlertingLevel.ERROR
 
     name = "target-actionnetwork"
 
@@ -34,7 +26,7 @@ class TargetActionNetwork(TargetHotglue):
             ),
             None,
         )
-    
+
 
 if __name__ == "__main__":
     TargetActionNetwork.cli()

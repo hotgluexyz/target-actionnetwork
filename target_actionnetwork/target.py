@@ -28,11 +28,8 @@ class TargetActionNetwork(TargetHotglue):
     def get_sink_class(self, stream_name: str):
         return next(
             (
-                sink_class
-                for sink_class in self.SINK_TYPES
-                if sink_class.name.lower() == stream_name.lower()
-            ),
-            None,
+                []
+            )
         )
 
 

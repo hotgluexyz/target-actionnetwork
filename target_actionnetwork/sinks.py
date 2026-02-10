@@ -59,15 +59,6 @@ class ContactsSink(ActionNetworkSink):
         self.logger.info(f"advocacy_campaign_id created with id: {id}.")
         return id
 
-    def update_advocacy_campaign(self, campaign_id, origin_system):
-        data = {
-            "origin_system": origin_system
-        }
-        response = self._request("PUT", f"advocacy_campaigns/{campaign_id}", request_data=data)
-        res_json = response.json()
-        self.logger.info(f"advocacy_campaign_id {campaign_id} updated with origin_system: {origin_system}")
-        return res_json
-
     def create_outreach(self, advocacy_campaign_id, email_addresses, phone_numbers):
         try:
             data = {"person": {}}
@@ -180,7 +171,6 @@ class ContactsSink(ActionNetworkSink):
         else:
             adv_camp_id = self.create_advocacy_campaign(list_name)
             self.create_outreach(adv_camp_id, email_addresses, phone_numbers)
-            self.get_advocacy_campaigns()
 
     
     def upsert_record(self, record: dict, context: dict):

@@ -176,10 +176,6 @@ class ContactsSink(ActionNetworkSink):
 
     def _handle_outreach_upserts(self, list_name: str, email_addresses: list, phone_numbers: list):
         if list_name in self.advocacy_campaigns:
-            # Backfill origin system if set
-            if self.config.get("campaign_origin_system") and self.advocacy_campaigns[list_name].get("origin_system") == self.default_origin_system:
-                self.update_advocacy_campaign(self.advocacy_campaigns[list_name]["id"], self.config.get("campaign_origin_system"))
-
             self.create_outreach(self.advocacy_campaigns[list_name]["id"], email_addresses, phone_numbers)
         else:
             adv_camp_id = self.create_advocacy_campaign(list_name)

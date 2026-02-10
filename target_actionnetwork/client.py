@@ -5,11 +5,9 @@ from __future__ import annotations
 import backoff
 import requests
 
-from hotglue_singer_sdk.plugin_base import PluginBase
 from hotglue_singer_sdk.target_sdk.client import HotglueSink
 from hotglue_etl_exceptions import InvalidCredentialsError, InvalidPayloadError
-from hotglue_singer_sdk.exceptions import FatalAPIError, RetriableAPIError
-import json
+from hotglue_singer_sdk.exceptions import RetriableAPIError
 
 from target_actionnetwork.auth import ActionNetworkAuthenticator
 

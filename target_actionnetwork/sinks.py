@@ -1,14 +1,14 @@
 """ActionNetwork target sink class, which handles writing streams."""
 
-import requests
 from target_actionnetwork.client import ActionNetworkSink
+from hotglue_etl_exceptions import InvalidPayloadError
 
 
-class CreateAdvocacyCampaignException(Exception):
+class CreateAdvocacyCampaignException(InvalidPayloadError):
     pass
 
 
-class CreateOutreachException(Exception):
+class CreateOutreachException(InvalidPayloadError):
     pass
 
 
@@ -34,11 +34,16 @@ class ContactsSink(ActionNetworkSink):
                     self.logger.warning(f"The campaign (title={adv_camp['title']}, id={adv_camp['identifiers']}) already exists, and it is mapped to id={self.advocacy_campaigns[adv_camp['title']]}")
                 self.advocacy_campaigns[adv_camp["title"]] = {"id": adv_camp["identifiers"][0].split(':')[1], "origin_system": adv_camp.get("origin_system")}
 
+    @property
+    def default_origin_system(self):
+        return self.config.get("campaign_origin_system", "Hotglue")
+
     def create_advocacy_campaign(self, name):
+        origin_system = self.default_origin_system
         try:
             data = {
                 "title": name,
-                "origin_system": self.config.get("campaign_origin_system", "Hotglue"),
+                "origin_system": origin_system,
                 "type": "email"
             }
             response = self._request("POST", "advocacy_campaigns", request_data=data)
@@ -46,7 +51,11 @@ class ContactsSink(ActionNetworkSink):
             id = res_json["_links"]["self"]["href"].split("/")[-1]
         except Exception as exc:
             raise CreateAdvocacyCampaignException(f"Error during creation of advocacy campaign {name}") from exc
-        self.advocacy_campaigns[name] = id
+        self.advocacy_campaigns[name] = {
+            "title": name,
+            "id": id,
+            "origin_system": origin_system,
+        }
         self.logger.info(f"advocacy_campaign_id created with id: {id}.")
         return id
 
@@ -74,6 +83,26 @@ class ContactsSink(ActionNetworkSink):
             raise CreateOutreachException(f"Error during creation of outreach advocacy_campaign_id={advocacy_campaign_id} and person={data['person']}") from exc
         self.logger.info(f"Outreach created with id: {id}. advocacy_campaign_id={advocacy_campaign_id} and person={data['person']}")
         return id
+
+    def _format_address_object(self, raw_address: dict) -> dict:
+        address_lines = []
+        line1 = raw_address.get("line1")
+        if line1:
+            address_lines.append(line1)
+        line2 = raw_address.get("line2")
+        if line2:
+            address_lines.append(line2)
+        line3 = raw_address.get("line3")
+        if line3:
+            address_lines.append(line3)
+        
+        return {
+            "address_lines": address_lines,
+            "locality": raw_address.get("city"),
+            "postal_code": raw_address.get("postal_code"),
+            "country": raw_address.get("country"),
+            "region": raw_address.get("state"),
+        }
     
     def preprocess_record(self, record: dict, context: dict) -> dict:
         person = {
@@ -86,24 +115,7 @@ class ContactsSink(ActionNetworkSink):
         addresses = record.get("addresses")
         if addresses:
             for address in addresses:
-                address_lines = []
-                line1 = address.get("line1")
-                if line1:
-                    address_lines.append(line1)
-                line2 = address.get("line2")
-                if line2:
-                    address_lines.append(line2)
-                line3 = address.get("line3")
-                if line3:
-                    address_lines.append(line3)
-
-                person["postal_addresses"].append({
-                    "address_lines": address_lines,
-                    "locality": address.get("city"),
-                    "postal_code": address.get("postal_code"),
-                    "country": address.get("country"),
-                    "region": address.get("state"),
-                })
+                person["postal_addresses"].append(self._format_address_object(address))
 
         #One of ['subscribed', 'unsubscribed', 'bouncing', 'previou' bounce’, 'spa' complaint’, or 'previou' spam complaint’]
         status = None
@@ -161,6 +173,19 @@ class ContactsSink(ActionNetworkSink):
         if lists:
             payload["lists"] = lists
         return payload
+
+    def _handle_outreach_upserts(self, list_name: str, email_addresses: list, phone_numbers: list):
+        if list_name in self.advocacy_campaigns:
+            # Backfill origin system if set
+            if self.config.get("campaign_origin_system") and self.advocacy_campaigns[list_name].get("origin_system") == self.default_origin_system:
+                self.update_advocacy_campaign(self.advocacy_campaigns[list_name]["id"], self.config.get("campaign_origin_system"))
+
+            self.create_outreach(self.advocacy_campaigns[list_name]["id"], email_addresses, phone_numbers)
+        else:
+            adv_camp_id = self.create_advocacy_campaign(list_name)
+            self.create_outreach(adv_camp_id, email_addresses, phone_numbers)
+            self.get_advocacy_campaigns()
+
     
     def upsert_record(self, record: dict, context: dict):
         state_updates = {}
@@ -186,18 +211,10 @@ class ContactsSink(ActionNetworkSink):
             email_addresses = record["person"].get("email_addresses", [])
             phone_numbers = record["person"].get("phone_numbers", [])
             if not email_addresses and not phone_numbers:
-                raise Exception("Email or Phone Number is required to create outreaches. "
+                raise InvalidPayloadError("Email or Phone Number is required to create outreaches. "
                                 "Error during creation of {} record with id: {}".format(self.name, record_id))
             for list_name in lists:
-                if list_name in self.advocacy_campaigns:
-                    # Backfill origin system if set
-                    if self.config.get("campaign_origin_system") and self.advocacy_campaigns[list_name].get("origin_system") == "hotglue":
-                        self.update_advocacy_campaign(self.advocacy_campaigns[list_name]["id"], self.config.get("campaign_origin_system"))
-
-                    self.create_outreach(self.advocacy_campaigns[list_name]["id"], email_addresses, phone_numbers)
-                else:
-                    adv_camp_id = self.create_advocacy_campaign(list_name)
-                    self.create_outreach(adv_camp_id, email_addresses, phone_numbers)
+                self._handle_outreach_upserts(list_name, email_addresses, phone_numbers)
 
         self.logger.info("{} created with id: {}".format(self.name, record_id))
 
